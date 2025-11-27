@@ -4,27 +4,27 @@
 # Author: Luca Tortorelli
 
 # System imports
-from __future__ import (print_function, division, absolute_import,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 # External modules
 import os
+
 import numpy as np
 from ceci.config import StageParameter as Param
-from diffstar.defaults import DEFAULT_N_STEPS, LGT0, FB, T_BIRTH_MIN
-from dsps.constants import T_TABLE_MIN
-from dsps.cosmology import age_at_z, DEFAULT_COSMOLOGY
+from diffstar.defaults import DEFAULT_N_STEPS, FB, LGT0, T_BIRTH_MIN
 from diffstar.sfh import get_sfh_from_mah_kern
+from dsps.constants import T_TABLE_MIN
+from dsps.cosmology import DEFAULT_COSMOLOGY, age_at_z
 from dsps.utils import cumulative_mstar_formed
-from jax import vmap
 from jax import jit as jjit
 from jax import numpy as jnp
+from jax import vmap
+from rail.core.data import Hdf5Handle
+from rail.core.stage import RailStage
+from rail.creation.engine import Creator
 
 # RAIL modules
 import rail
-from rail.creation.engine import Creator
-from rail.core.stage import RailStage
-from rail.core.data import Hdf5Handle
 from rail.lib_gp_comp.utils.utils import multiInterp2
 
 
@@ -37,36 +37,41 @@ class DiffskyGalaxyPopulationCreator(Creator):
     name = "DiffskyGalaxyPopulationCreator"
     config_options = RailStage.config_options.copy()
 
-    config_options.update(log10_age_universe=Param(float, LGT0, msg='Base-10 log of the age of the universe in Gyr.'),
-                          cosmic_baryon_fraction=Param(float, FB, msg='Cosmic baryon fraction.'),
-                          t_min_table=Param(float, T_TABLE_MIN, msg='Lower value of the Universe age time grid.'),
-                          t_max_table=Param(float, 10 ** LGT0, msg='Upper value of the Universe age time grid.'),
-                          n_time_steps=Param(int, DEFAULT_N_STEPS,
-                                             msg='Number of steps of the Universe age time grid.'),
-                          tacc_integration_min=Param(float, T_BIRTH_MIN,
-                                                     msg='Earliest time to use in the tacc integrations. '
-                                                         'Default is 0.01 Gyr.'),
-                          cosmology_parameters=Param(tuple, DEFAULT_COSMOLOGY,
-                                                     msg='NamedTuple storing parameters of a flat w0-wa cdm '
-                                                         'cosmology, default is Planck15.'),
-                          catalog_redshift_key=Param(str, 'redshift',
-                                                     msg='Redshift keyword in the skysim/diffsky catalog.'),
-                          catalog_metallicity_key=Param(str, 'lg_met_mean',
-                                                        msg='Stellar metallicity keyword in the skysim/diffsky '
-                                                            'catalog.'),
-                          catalog_metallicity_scatter_key=Param(str, 'lg_met_scatter',
-                                                                msg='Stellar metallicity scatter keyword in the '
-                                                                    'skysim/diffsky catalog.'),
-                          cosmic_time_grid_key=Param(str, 'cosmic_time_grid',
-                                                     msg='Cosmic time grid keyword in the output catalog.'),
-                          star_formation_history_key=Param(str, 'star_formation_history',
-                                                           msg='Star-formation history keyword in the output catalog.'),
-                          star_formation_rate_key=Param(str, 'star_formation_rate',
-                                                        msg='Star-formation rate keyword in the output catalog.'),
-                          stellar_mass_history_key=Param(str, 'stellar_mass_history',
-                                                         msg='Stellar mass history keyword in the output catalog.'),
-                          stellar_mass_key=Param(str, 'stellar_mass',
-                                                 msg='Stellar mass keyword in the output catalog.'))
+    config_options.update(
+        log10_age_universe=Param(float, LGT0, msg="Base-10 log of the age of the universe in Gyr."),
+        cosmic_baryon_fraction=Param(float, FB, msg="Cosmic baryon fraction."),
+        t_min_table=Param(float, T_TABLE_MIN, msg="Lower value of the Universe age time grid."),
+        t_max_table=Param(float, 10**LGT0, msg="Upper value of the Universe age time grid."),
+        n_time_steps=Param(int, DEFAULT_N_STEPS, msg="Number of steps of the Universe age time grid."),
+        tacc_integration_min=Param(
+            float, T_BIRTH_MIN, msg="Earliest time to use in the tacc integrations. " "Default is 0.01 Gyr."
+        ),
+        cosmology_parameters=Param(
+            tuple,
+            DEFAULT_COSMOLOGY,
+            msg="NamedTuple storing parameters of a flat w0-wa cdm " "cosmology, default is Planck15.",
+        ),
+        catalog_redshift_key=Param(str, "redshift", msg="Redshift keyword in the skysim/diffsky catalog."),
+        catalog_metallicity_key=Param(
+            str, "lg_met_mean", msg="Stellar metallicity keyword in the skysim/diffsky " "catalog."
+        ),
+        catalog_metallicity_scatter_key=Param(
+            str, "lg_met_scatter", msg="Stellar metallicity scatter keyword in the " "skysim/diffsky catalog."
+        ),
+        cosmic_time_grid_key=Param(
+            str, "cosmic_time_grid", msg="Cosmic time grid keyword in the output catalog."
+        ),
+        star_formation_history_key=Param(
+            str, "star_formation_history", msg="Star-formation history keyword in the output catalog."
+        ),
+        star_formation_rate_key=Param(
+            str, "star_formation_rate", msg="Star-formation rate keyword in the output catalog."
+        ),
+        stellar_mass_history_key=Param(
+            str, "stellar_mass_history", msg="Stellar mass history keyword in the output catalog."
+        ),
+        stellar_mass_key=Param(str, "stellar_mass", msg="Stellar mass keyword in the output catalog."),
+    )
 
     inputs = [("model", Hdf5Handle)]
     outputs = [("output", Hdf5Handle)]
@@ -102,11 +107,20 @@ class DiffskyGalaxyPopulationCreator(Creator):
             Star-formation histories ndarray of shape (n_gal, n_time_steps) containing the star-formation rates in
             Msun/yr per time bin.
         """
-        sfh_from_mah_kern = get_sfh_from_mah_kern(n_steps=self.config.n_time_steps,
-                                                  tacc_integration_min=self.config.tacc_integration_min,
-                                                  tobs_loop='vmap', galpop_loop='vmap')
-        star_formation_histories = sfh_from_mah_kern(cosmic_time_grid, mah_params, ms_params, q_params,
-                                                     self.config.log10_age_universe, self.config.cosmic_baryon_fraction)
+        sfh_from_mah_kern = get_sfh_from_mah_kern(
+            n_steps=self.config.n_time_steps,
+            tacc_integration_min=self.config.tacc_integration_min,
+            tobs_loop="vmap",
+            galpop_loop="vmap",
+        )
+        star_formation_histories = sfh_from_mah_kern(
+            cosmic_time_grid,
+            mah_params,
+            ms_params,
+            q_params,
+            self.config.log10_age_universe,
+            self.config.cosmic_baryon_fraction,
+        )
 
         return star_formation_histories
 
@@ -222,18 +236,31 @@ class DiffskyGalaxyPopulationCreator(Creator):
             Array of formed stellar masses in units of log10(M*/Msun) at the galaxy time of observations.
         """
 
-        cosmic_time_grid = np.linspace(self.config.t_min_table, self.config.t_max_table, self.config.n_time_steps)
-        star_formation_histories = self._compute_sfh_from_mah_kern(cosmic_time_grid, mah_params, ms_params, q_params)
-        star_formation_rates = self._compute_sfr_from_sfh(cosmic_time_grid, star_formation_histories, redshifts)
-        log_stellar_mass_histories = self._compute_cumulative_formed_smh(cosmic_time_grid, star_formation_histories)
-        log_stellar_masses = self._compute_sm_from_smh(cosmic_time_grid, log_stellar_mass_histories, redshifts)
+        cosmic_time_grid = np.linspace(
+            self.config.t_min_table, self.config.t_max_table, self.config.n_time_steps
+        )
+        star_formation_histories = self._compute_sfh_from_mah_kern(
+            cosmic_time_grid, mah_params, ms_params, q_params
+        )
+        star_formation_rates = self._compute_sfr_from_sfh(
+            cosmic_time_grid, star_formation_histories, redshifts
+        )
+        log_stellar_mass_histories = self._compute_cumulative_formed_smh(
+            cosmic_time_grid, star_formation_histories
+        )
+        log_stellar_masses = self._compute_sm_from_smh(
+            cosmic_time_grid, log_stellar_mass_histories, redshifts
+        )
 
-        return cosmic_time_grid, star_formation_histories, star_formation_rates, log_stellar_mass_histories, \
-            log_stellar_masses
+        return (
+            cosmic_time_grid,
+            star_formation_histories,
+            star_formation_rates,
+            log_stellar_mass_histories,
+            log_stellar_masses,
+        )
 
-    def sample(self, seed: int = None,
-               input_data=None,
-               **kwargs):
+    def sample(self, seed: int = None, input_data=None, **kwargs):
         r"""
         Samples galaxy properties from diffsky/skysim model and stores them into an Hdf5Handle
 
@@ -256,14 +283,17 @@ class DiffskyGalaxyPopulationCreator(Creator):
 
         """
         if input_data is None:
-            RAIL_LIB_GP_COMP_DIR = os.path.abspath(os.path.join(os.path.dirname(rail.lib_gp_comp.__file__), '..'))
-            default_files_folder = os.path.join(RAIL_LIB_GP_COMP_DIR, 'examples_data', 'creation_data',
-                                                'data')
-            input_data = os.path.join(default_files_folder, 'model_DiffskyGalaxyPopulationModeler.hdf5')
+            RAIL_LIB_GP_COMP_DIR = os.path.abspath(
+                os.path.join(os.path.dirname(rail.lib_gp_comp.__file__), "..")
+            )
+            default_files_folder = os.path.join(
+                RAIL_LIB_GP_COMP_DIR, "examples_data", "creation_data", "data"
+            )
+            input_data = os.path.join(default_files_folder, "model_DiffskyGalaxyPopulationModeler.hdf5")
 
         self.config["seed"] = seed
         self.config.update(**kwargs)
-        self.set_data('model', input_data)
+        self.set_data("model", input_data)
         self.run()
         self.finalize()
         output = self.get_handle("output")
@@ -274,23 +304,31 @@ class DiffskyGalaxyPopulationCreator(Creator):
         This function computes the galaxy properties from the diffsky/skysim model using diffmah and diffstar
         functions. The sampled properties are those needed as input for rail_dsps and rail_fsps to work.
         """
-        self.model = self.get_data('model')
+        self.model = self.get_data("model")
         redshifts = self.model[self.config.catalog_redshift_key][()]
         stellar_metallicities = self.model[self.config.catalog_metallicity_key][()]
         stellar_metallicities_scatter = self.model[self.config.catalog_metallicity_scatter_key][()]
-        mah_params = self.model['mah_params'][()]
-        ms_params = self.model['ms_params'][()]
-        q_params = self.model['q_params'][()]
-        cosmic_time_grid, star_formation_histories, star_formation_rates, log_stellar_mass_histories, \
-            log_stellar_masses = self._sample_galaxy_properties_from_model(mah_params, ms_params, q_params, redshifts)
+        mah_params = self.model["mah_params"][()]
+        ms_params = self.model["ms_params"][()]
+        q_params = self.model["q_params"][()]
+        (
+            cosmic_time_grid,
+            star_formation_histories,
+            star_formation_rates,
+            log_stellar_mass_histories,
+            log_stellar_masses,
+        ) = self._sample_galaxy_properties_from_model(mah_params, ms_params, q_params, redshifts)
 
-        galaxy_properties = {self.config.catalog_redshift_key: redshifts,
-                             self.config.catalog_metallicity_key: stellar_metallicities,
-                             self.config.catalog_metallicity_scatter_key: stellar_metallicities_scatter,
-                             self.config.cosmic_time_grid_key: np.full((len(redshifts), len(cosmic_time_grid)),
-                                                                       cosmic_time_grid),
-                             self.config.star_formation_history_key: star_formation_histories,
-                             self.config.star_formation_rate_key: star_formation_rates,
-                             self.config.stellar_mass_history_key: log_stellar_mass_histories,
-                             self.config.stellar_mass_key: log_stellar_masses}
-        self.add_data('output', galaxy_properties)
+        galaxy_properties = {
+            self.config.catalog_redshift_key: redshifts,
+            self.config.catalog_metallicity_key: stellar_metallicities,
+            self.config.catalog_metallicity_scatter_key: stellar_metallicities_scatter,
+            self.config.cosmic_time_grid_key: np.full(
+                (len(redshifts), len(cosmic_time_grid)), cosmic_time_grid
+            ),
+            self.config.star_formation_history_key: star_formation_histories,
+            self.config.star_formation_rate_key: star_formation_rates,
+            self.config.stellar_mass_history_key: log_stellar_mass_histories,
+            self.config.stellar_mass_key: log_stellar_masses,
+        }
+        self.add_data("output", galaxy_properties)

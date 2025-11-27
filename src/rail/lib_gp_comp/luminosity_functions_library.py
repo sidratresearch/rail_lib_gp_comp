@@ -4,18 +4,21 @@
 # Author: Luca Tortorelli
 
 # System imports
-from __future__ import (print_function, division, absolute_import,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 # External modules
 from abc import ABC, abstractmethod
+
 import numpy as np
 from astropy import units as u
 
 # creation imports
-from utils.utils_luminosity_function import compute_lower_truncation_scaled_schechter_random_variable
-from utils.utils_luminosity_function import gamma_function_integration_for_redshift
-from utils.utils_luminosity_function import get_minimum_limiting_absolute_magnitude, sample_from_schechter_function
+from utils.utils_luminosity_function import (
+    compute_lower_truncation_scaled_schechter_random_variable,
+    gamma_function_integration_for_redshift,
+    get_minimum_limiting_absolute_magnitude,
+    sample_from_schechter_function,
+)
 
 
 class LuminosityFunctionModel(ABC):
@@ -48,8 +51,16 @@ class LuminosityFunctionModel(ABC):
 
 
 class SchechterLuminosityFunctionModel(LuminosityFunctionModel):
-    def __init__(self, input_redshift_grid, m_star, phi_star, alpha, apparent_magnitude_limit, sky_area,
-                 cosmology_object):
+    def __init__(
+        self,
+        input_redshift_grid,
+        m_star,
+        phi_star,
+        alpha,
+        apparent_magnitude_limit,
+        sky_area,
+        cosmology_object,
+    ):
         """
         This class implements the Schechter functional form for the galaxy luminosity function.
 
@@ -78,7 +89,9 @@ class SchechterLuminosityFunctionModel(LuminosityFunctionModel):
         self.phi_star = phi_star
         self.alpha = alpha
         self.apparent_magnitude_limit = apparent_magnitude_limit
-        self.sky_area = sky_area * (np.pi/180)**2 * u.sr  # transforming in units of solid angle for astropy
+        self.sky_area = (
+            sky_area * (np.pi / 180) ** 2 * u.sr
+        )  # transforming in units of solid angle for astropy
         self.cosmology = cosmology_object
 
     def sample_galaxy_redshifts_from_luminosity_function(self, redshift_number_density, number_of_galaxies):
@@ -103,17 +116,28 @@ class SchechterLuminosityFunctionModel(LuminosityFunctionModel):
         """
 
         cdf = redshift_number_density
-        np.cumsum((redshift_number_density[1:] + redshift_number_density[:-1]) / 2 * np.diff(self.input_redshift_grid),
-                  out=cdf[1:])
+        np.cumsum(
+            (redshift_number_density[1:] + redshift_number_density[:-1])
+            / 2
+            * np.diff(self.input_redshift_grid),
+            out=cdf[1:],
+        )
         cdf[0] = 0
         cdf /= cdf[-1]
-        sampled_galaxy_redshifts = np.interp(np.random.rand(number_of_galaxies), cdf, self.input_redshift_grid)
+        sampled_galaxy_redshifts = np.interp(
+            np.random.rand(number_of_galaxies), cdf, self.input_redshift_grid
+        )
 
         return sampled_galaxy_redshifts
 
-    def sample_absolute_magnitudes_from_luminosity_function(self, sampled_galaxy_redshifts,
-                                                            maximum_limiting_absolute_magnitude=1e3, size=None,
-                                                            scale=1., resolution=1000):
+    def sample_absolute_magnitudes_from_luminosity_function(
+        self,
+        sampled_galaxy_redshifts,
+        maximum_limiting_absolute_magnitude=1e3,
+        size=None,
+        scale=1.0,
+        resolution=1000,
+    ):
         """
         This function samples galaxy absolute magnitudes from the Schechter function given the sampled galaxy
         redshifts, size of the sampling and maximum absolute magnitude.
@@ -140,11 +164,17 @@ class SchechterLuminosityFunctionModel(LuminosityFunctionModel):
 
         """
 
-        x_min = get_minimum_limiting_absolute_magnitude(sampled_galaxy_redshifts, self.apparent_magnitude_limit,
-                                                        self.cosmology, self.m_star)
-        sampled_absolute_magnitudes = sample_from_schechter_function(self.alpha, x_min,
-                                                                     maximum_limiting_absolute_magnitude, size=size,
-                                                                     scale=scale, resolution=resolution)
+        x_min = get_minimum_limiting_absolute_magnitude(
+            sampled_galaxy_redshifts, self.apparent_magnitude_limit, self.cosmology, self.m_star
+        )
+        sampled_absolute_magnitudes = sample_from_schechter_function(
+            self.alpha,
+            x_min,
+            maximum_limiting_absolute_magnitude,
+            size=size,
+            scale=scale,
+            resolution=resolution,
+        )
         np.log10(sampled_absolute_magnitudes, out=sampled_absolute_magnitudes)
         sampled_absolute_magnitudes *= -2.5
         sampled_absolute_magnitudes += self.m_star
@@ -163,9 +193,9 @@ class SchechterLuminosityFunctionModel(LuminosityFunctionModel):
 
         """
 
-        lnxmin = compute_lower_truncation_scaled_schechter_random_variable(self.input_redshift_grid,
-                                                                           self.apparent_magnitude_limit,
-                                                                           self.cosmology, self.m_star)
+        lnxmin = compute_lower_truncation_scaled_schechter_random_variable(
+            self.input_redshift_grid, self.apparent_magnitude_limit, self.cosmology, self.m_star
+        )
 
         gamma = gamma_function_integration_for_redshift(lnxmin, self.alpha)
 
@@ -190,8 +220,9 @@ class SchechterLuminosityFunctionModel(LuminosityFunctionModel):
 
         """
 
-        redshift_number_density = (self.cosmology.differential_comoving_volume(self.input_redshift_grid) *
-                                   self.sky_area).to_value('Mpc3')
+        redshift_number_density = (
+            self.cosmology.differential_comoving_volume(self.input_redshift_grid) * self.sky_area
+        ).to_value("Mpc3")
         redshift_number_density *= comoving_number_density
 
         return redshift_number_density

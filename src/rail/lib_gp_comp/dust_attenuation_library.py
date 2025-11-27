@@ -4,11 +4,11 @@
 # Author: Luca Tortorelli
 
 # System imports
-from __future__ import (print_function, division, absolute_import,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 # External modules
 from abc import ABC, abstractmethod
+
 import numpy as np
 
 
@@ -16,6 +16,7 @@ class DustAttenuationModel(ABC):
     """
     Abstract class for the dust attenuation laws
     """
+
     def __init__(self):
         pass
 
@@ -76,7 +77,7 @@ class Calzetti2000DustAttenuationModel(DustAttenuationModel):
         flux_observed: numpy.array
             Array of observed flux densities, shape=(n_wavelengths,)
         """
-        flux_observed = flux_intrinsic * 10**(-0.4 * self.A_lambda * self.Es_B_V)
+        flux_observed = flux_intrinsic * 10 ** (-0.4 * self.A_lambda * self.Es_B_V)
 
         return flux_observed
 
@@ -130,9 +131,16 @@ class Calzetti2000DustAttenuationModel(DustAttenuationModel):
 
         """
         mask_lambda_1200_6300_AA = np.where((self.wavelength_grid >= 1200) & (self.wavelength_grid < 6300))
-        A_lambda_1200_6300_AA = 2.659 * (-2.156 + (1.509/self.wavelength_grid[mask_lambda_1200_6300_AA]) -
-                                         (0.198/self.wavelength_grid[mask_lambda_1200_6300_AA]**2) +
-                                         (0.011/self.wavelength_grid[mask_lambda_1200_6300_AA]**3)) + 4.05
+        A_lambda_1200_6300_AA = (
+            2.659
+            * (
+                -2.156
+                + (1.509 / self.wavelength_grid[mask_lambda_1200_6300_AA])
+                - (0.198 / self.wavelength_grid[mask_lambda_1200_6300_AA] ** 2)
+                + (0.011 / self.wavelength_grid[mask_lambda_1200_6300_AA] ** 3)
+            )
+            + 4.05
+        )
 
         return A_lambda_1200_6300_AA
 
@@ -149,13 +157,15 @@ class Calzetti2000DustAttenuationModel(DustAttenuationModel):
 
         """
         mask_lambda_6300_22000_AA = np.where((self.wavelength_grid >= 6300) & (self.wavelength_grid <= 22000))
-        A_lambda_6300_22000_AA = 2.659 * (-1.857 + (1.040/self.wavelength_grid[mask_lambda_6300_22000_AA])) + 4.05
+        A_lambda_6300_22000_AA = (
+            2.659 * (-1.857 + (1.040 / self.wavelength_grid[mask_lambda_6300_22000_AA])) + 4.05
+        )
 
         return A_lambda_6300_22000_AA
 
 
 class KriekConroy2013DustAttenuationModel(DustAttenuationModel):
-    def __init__(self, wavelength_grid, A_V, n, lambda_V=5500.):
+    def __init__(self, wavelength_grid, A_V, n, lambda_V=5500.0):
         """
         This class implements the dust attenuation law presented in Kriek and Conroy 2013
 
@@ -196,7 +206,7 @@ class KriekConroy2013DustAttenuationModel(DustAttenuationModel):
 
         return flux_observed
 
-    def get_dust_attenuation_per_wavelength(self, fwhm_bump=350., dust_bump_wavelength=2175.):
+    def get_dust_attenuation_per_wavelength(self, fwhm_bump=350.0, dust_bump_wavelength=2175.0):
         """
         This function returns dust attenuation curve as a function of wavelength,
         formula (1) in Kriek and Conroy 2013
@@ -217,8 +227,11 @@ class KriekConroy2013DustAttenuationModel(DustAttenuationModel):
         calzetti_attenuation_law = Calzetti2000DustAttenuationModel(self.wavelength_grid)
         A_lambda_Calzetti = calzetti_attenuation_law.get_dust_attenuation_per_wavelength()
         D_lambda = self.get_UV_bump(fwhm_bump=fwhm_bump, dust_bump_wavelength=dust_bump_wavelength)
-        self.A_lambda = (self.A_V / 4.05) * (A_lambda_Calzetti * D_lambda) * \
-                        (self.wavelength_grid / self.lambda_V)**self.n
+        self.A_lambda = (
+            (self.A_V / 4.05)
+            * (A_lambda_Calzetti * D_lambda)
+            * (self.wavelength_grid / self.lambda_V) ** self.n
+        )
 
         return self.A_lambda
 
@@ -236,7 +249,7 @@ class KriekConroy2013DustAttenuationModel(DustAttenuationModel):
 
         return E_b
 
-    def get_UV_bump(self, fwhm_bump=350., dust_bump_wavelength=2175.):
+    def get_UV_bump(self, fwhm_bump=350.0, dust_bump_wavelength=2175.0):
         """
         This function computes the Lorentzian-like Drude profile used to parametrize the UV bump,
         formula (2) in Kriek and Conroy 2013
@@ -255,14 +268,15 @@ class KriekConroy2013DustAttenuationModel(DustAttenuationModel):
 
         """
         E_b = self.compute_bump_amplitude()
-        D_lambda = (E_b * (self.wavelength_grid * fwhm_bump)**2) / \
-                   ((self.wavelength_grid**2 - dust_bump_wavelength**2)**2 + (self.wavelength_grid * fwhm_bump)**2)
+        D_lambda = (E_b * (self.wavelength_grid * fwhm_bump) ** 2) / (
+            (self.wavelength_grid**2 - dust_bump_wavelength**2) ** 2 + (self.wavelength_grid * fwhm_bump) ** 2
+        )
 
         return D_lambda
 
 
 class BirthCloudLeja2017DustAttenuationModel(DustAttenuationModel):
-    def __init__(self, wavelength_grid, A_birth_cloud, lambda_V=5500.):
+    def __init__(self, wavelength_grid, A_birth_cloud, lambda_V=5500.0):
         """
         This class implements the birth-cloud component of the dust attenuation used in Leja et al. 2013.
         This component attenuates nebular emission and stellar emission only from stars formed in the last 10 Myr,
@@ -298,7 +312,7 @@ class BirthCloudLeja2017DustAttenuationModel(DustAttenuationModel):
         flux_observed: numpy.array
             Array of observed flux densities, shape=(n_wavelengths,)
         """
-        flux_observed = flux_intrinsic * 10**(-0.4 * self.A_lambda)
+        flux_observed = flux_intrinsic * 10 ** (-0.4 * self.A_lambda)
 
         return flux_observed
 
@@ -314,6 +328,6 @@ class BirthCloudLeja2017DustAttenuationModel(DustAttenuationModel):
 
         """
 
-        self.A_lambda = self.A_birth_cloud * (self.wavelength_grid / self.lambda_V)**(-1.0)
+        self.A_lambda = self.A_birth_cloud * (self.wavelength_grid / self.lambda_V) ** (-1.0)
 
         return self.A_lambda

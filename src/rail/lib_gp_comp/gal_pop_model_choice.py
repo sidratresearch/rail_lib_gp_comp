@@ -4,28 +4,31 @@
 # Author: Luca Tortorelli
 
 # System imports
-from __future__ import (print_function, division, absolute_import,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+import os
 
 # External modules
 from abc import ABC, abstractmethod
-import os
+
 import h5py
 import numpy as np
 import pandas as pd
-from diffstar.defaults import DEFAULT_N_STEPS, LGT0, FB, T_BIRTH_MIN
-from dsps.constants import T_TABLE_MIN
+from diffstar.defaults import DEFAULT_N_STEPS, FB, LGT0, T_BIRTH_MIN
 from diffstar.sfh import get_sfh_from_mah_kern
-from dsps.cosmology import age_at_z, DEFAULT_COSMOLOGY
+from dsps.constants import T_TABLE_MIN
+from dsps.cosmology import DEFAULT_COSMOLOGY, age_at_z
 from dsps.utils import cumulative_mstar_formed
-from jax import vmap
 from jax import jit as jjit
 from jax import numpy as jnp
+from jax import vmap
 
 # RAIL modules
 from rail.core.utils import find_rail_file
+
 from rail.lib_gp_comp.utils.utils import multiInterp2
-default_files_folder = find_rail_file(os.path.join('examples_data', 'creation_data', 'data'))
+
+default_files_folder = find_rail_file(os.path.join("examples_data", "creation_data", "data"))
 
 
 class GalaxyPopulationModel(ABC):
@@ -59,19 +62,33 @@ class DiffskyGalaxyPopulationModel(GalaxyPopulationModel):
     on NERSC to sample the population properties and the galaxy physical properties.
 
     """
-    def __init__(self, skysim_input_catalog_path=os.path.join(default_files_folder, 'skysim_v3.1.0_red.csv'),
-                 population_parameters_table_path=os.path.join(default_files_folder,
-                                                               'skysim_v3.1.0_population_parameters.h5'),
-                 galaxy_properties_table_path=os.path.join(default_files_folder,
-                                                           'skysim_v3.1.0_galaxy_properties.h5'),
-                 DIFFMAH_KEYS=None, DIFFSTAR_MS_KEYS=None, DIFFSTAR_Q_KEYS=None,
-                 log10_age_universe=LGT0, cosmic_baryon_fraction=FB, t_min_table=T_TABLE_MIN, t_max_table=10**LGT0,
-                 n_time_steps=DEFAULT_N_STEPS,
-                 tacc_integration_min=T_BIRTH_MIN, cosmology_parameters=DEFAULT_COSMOLOGY,
-                 catalog_redshift_key='redshift', catalog_metallicity_key='lg_met_mean',
-                 catalog_metallicity_scatter_key='lg_met_scatter', cosmic_time_grid_key='cosmic_time_grid',
-                 star_formation_history_key='star_formation_history', star_formation_rate_key='star_formation_rate',
-                 stellar_mass_history_key='stellar_mass_history', stellar_mass_key='stellar_mass'):
+
+    def __init__(
+        self,
+        skysim_input_catalog_path=os.path.join(default_files_folder, "skysim_v3.1.0_red.csv"),
+        population_parameters_table_path=os.path.join(
+            default_files_folder, "skysim_v3.1.0_population_parameters.h5"
+        ),
+        galaxy_properties_table_path=os.path.join(default_files_folder, "skysim_v3.1.0_galaxy_properties.h5"),
+        DIFFMAH_KEYS=None,
+        DIFFSTAR_MS_KEYS=None,
+        DIFFSTAR_Q_KEYS=None,
+        log10_age_universe=LGT0,
+        cosmic_baryon_fraction=FB,
+        t_min_table=T_TABLE_MIN,
+        t_max_table=10**LGT0,
+        n_time_steps=DEFAULT_N_STEPS,
+        tacc_integration_min=T_BIRTH_MIN,
+        cosmology_parameters=DEFAULT_COSMOLOGY,
+        catalog_redshift_key="redshift",
+        catalog_metallicity_key="lg_met_mean",
+        catalog_metallicity_scatter_key="lg_met_scatter",
+        cosmic_time_grid_key="cosmic_time_grid",
+        star_formation_history_key="star_formation_history",
+        star_formation_rate_key="star_formation_rate",
+        stellar_mass_history_key="stellar_mass_history",
+        stellar_mass_key="stellar_mass",
+    ):
         """
 
         Parameters
@@ -122,10 +139,16 @@ class DiffskyGalaxyPopulationModel(GalaxyPopulationModel):
         super().__init__()
 
         if DIFFMAH_KEYS is None:
-            self.DIFFMAH_KEYS = ["diffmah_logmp_fit", "diffmah_mah_logtc", "diffmah_early_index", "diffmah_late_index"]
+            self.DIFFMAH_KEYS = [
+                "diffmah_logmp_fit",
+                "diffmah_mah_logtc",
+                "diffmah_early_index",
+                "diffmah_late_index",
+            ]
         if DIFFSTAR_MS_KEYS is None:
-            self.DIFFSTAR_MS_KEYS = ["diffstar_u_" + key for key in ["lgmcrit", "lgy_at_mcrit", "indx_lo",
-                                                                     "indx_hi", "tau_dep"]]
+            self.DIFFSTAR_MS_KEYS = [
+                "diffstar_u_" + key for key in ["lgmcrit", "lgy_at_mcrit", "indx_lo", "indx_hi", "tau_dep"]
+            ]
         if DIFFSTAR_Q_KEYS is None:
             self.DIFFSTAR_Q_KEYS = ["diffstar_u_" + key for key in ["qt", "qs", "q_drop", "q_rejuv"]]
 
@@ -134,8 +157,14 @@ class DiffskyGalaxyPopulationModel(GalaxyPopulationModel):
         self.cosmology_parameters, self.catalog_redshift_key = cosmology_parameters, catalog_redshift_key
         self.catalog_metallicity_key = catalog_metallicity_key
         self.catalog_metallicity_scatter_key = catalog_metallicity_scatter_key
-        self.cosmic_time_grid_key, self.star_formation_history_key = cosmic_time_grid_key, star_formation_history_key
-        self.star_formation_rate_key, self.stellar_mass_history_key = star_formation_rate_key, stellar_mass_history_key
+        self.cosmic_time_grid_key, self.star_formation_history_key = (
+            cosmic_time_grid_key,
+            star_formation_history_key,
+        )
+        self.star_formation_rate_key, self.stellar_mass_history_key = (
+            star_formation_rate_key,
+            stellar_mass_history_key,
+        )
         self.stellar_mass_key, self.t_min_table, self.t_max_table = stellar_mass_key, t_min_table, t_max_table
 
         self.skysim_df = pd.read_csv(skysim_input_catalog_path)
@@ -204,11 +233,20 @@ class DiffskyGalaxyPopulationModel(GalaxyPopulationModel):
             Star-formation histories ndarray of shape (n_gal, n_time_steps) containing the star-formation rates in
             Msun/yr per time bin.
         """
-        sfh_from_mah_kern = get_sfh_from_mah_kern(n_steps=self.n_time_steps,
-                                                  tacc_integration_min=self.tacc_integration_min,
-                                                  tobs_loop='vmap', galpop_loop='vmap')
-        star_formation_histories = sfh_from_mah_kern(cosmic_time_grid, mah_params, ms_params, q_params,
-                                                     self.log10_age_universe, self.cosmic_baryon_fraction)
+        sfh_from_mah_kern = get_sfh_from_mah_kern(
+            n_steps=self.n_time_steps,
+            tacc_integration_min=self.tacc_integration_min,
+            tobs_loop="vmap",
+            galpop_loop="vmap",
+        )
+        star_formation_histories = sfh_from_mah_kern(
+            cosmic_time_grid,
+            mah_params,
+            ms_params,
+            q_params,
+            self.log10_age_universe,
+            self.cosmic_baryon_fraction,
+        )
 
         return star_formation_histories
 
@@ -329,13 +367,29 @@ class DiffskyGalaxyPopulationModel(GalaxyPopulationModel):
         stellar_metallicity_scatter = self.skysim_df[self.catalog_metallicity_scatter_key]
 
         cosmic_time_grid = np.linspace(self.t_min_table, self.t_max_table, self.n_time_steps)
-        star_formation_histories = self._compute_sfh_from_mah_kern(cosmic_time_grid, mah_params, ms_params, q_params)
-        star_formation_rates = self._compute_sfr_from_sfh(cosmic_time_grid, star_formation_histories, redshifts)
-        log_stellar_mass_histories = self._compute_cumulative_formed_smh(cosmic_time_grid, star_formation_histories)
-        log_stellar_masses = self._compute_sm_from_smh(cosmic_time_grid, log_stellar_mass_histories, redshifts)
+        star_formation_histories = self._compute_sfh_from_mah_kern(
+            cosmic_time_grid, mah_params, ms_params, q_params
+        )
+        star_formation_rates = self._compute_sfr_from_sfh(
+            cosmic_time_grid, star_formation_histories, redshifts
+        )
+        log_stellar_mass_histories = self._compute_cumulative_formed_smh(
+            cosmic_time_grid, star_formation_histories
+        )
+        log_stellar_masses = self._compute_sm_from_smh(
+            cosmic_time_grid, log_stellar_mass_histories, redshifts
+        )
 
-        return cosmic_time_grid, redshifts, star_formation_histories, star_formation_rates, log_stellar_mass_histories, \
-            log_stellar_masses, stellar_metallicity, stellar_metallicity_scatter
+        return (
+            cosmic_time_grid,
+            redshifts,
+            star_formation_histories,
+            star_formation_rates,
+            log_stellar_mass_histories,
+            log_stellar_masses,
+            stellar_metallicity,
+            stellar_metallicity_scatter,
+        )
 
     def store_sampled_population_parameters(self, population_parameters):
         """
@@ -346,10 +400,10 @@ class DiffskyGalaxyPopulationModel(GalaxyPopulationModel):
             Population parameters sampled from skysim/diffsky model in the form (mah_params, ms_params, q_params).
         """
         mah_params, ms_params, q_params = population_parameters
-        with h5py.File(self.population_parameters_table_path, 'w') as h5table:
-            h5table.create_dataset(name='mah_params', data=mah_params)
-            h5table.create_dataset(name='ms_params', data=ms_params)
-            h5table.create_dataset(name='q_params', data=q_params)
+        with h5py.File(self.population_parameters_table_path, "w") as h5table:
+            h5table.create_dataset(name="mah_params", data=mah_params)
+            h5table.create_dataset(name="ms_params", data=ms_params)
+            h5table.create_dataset(name="q_params", data=q_params)
 
     def store_sampled_galaxy_properties(self, galaxy_properties):
         """
@@ -361,9 +415,17 @@ class DiffskyGalaxyPopulationModel(GalaxyPopulationModel):
             star_formation_histories, star_formation_rates, log_stellar_mass_histories,
             log_stellar_masses, stellar_metallicity, stellar_metallicity_scatter).
         """
-        cosmic_time_grid, redshifts, star_formation_histories, star_formation_rates, log_stellar_mass_histories, \
-            log_stellar_masses, stellar_metallicity, stellar_metallicity_scatter = galaxy_properties
-        with h5py.File(self.galaxy_properties_table_path, 'w') as h5table:
+        (
+            cosmic_time_grid,
+            redshifts,
+            star_formation_histories,
+            star_formation_rates,
+            log_stellar_mass_histories,
+            log_stellar_masses,
+            stellar_metallicity,
+            stellar_metallicity_scatter,
+        ) = galaxy_properties
+        with h5py.File(self.galaxy_properties_table_path, "w") as h5table:
             h5table.create_dataset(name=self.cosmic_time_grid_key, data=cosmic_time_grid)
             h5table.create_dataset(name=self.catalog_redshift_key, data=redshifts)
             h5table.create_dataset(name=self.star_formation_history_key, data=star_formation_histories)
@@ -371,13 +433,13 @@ class DiffskyGalaxyPopulationModel(GalaxyPopulationModel):
             h5table.create_dataset(name=self.stellar_mass_history_key, data=log_stellar_mass_histories)
             h5table.create_dataset(name=self.stellar_mass_key, data=log_stellar_masses)
             h5table.create_dataset(name=self.catalog_metallicity_key, data=stellar_metallicity)
-            h5table.create_dataset(name=self.catalog_metallicity_scatter_key, data=stellar_metallicity_scatter)
+            h5table.create_dataset(
+                name=self.catalog_metallicity_scatter_key, data=stellar_metallicity_scatter
+            )
 
 
 class ProspectorAlphaGalaxyPopulationModel(GalaxyPopulationModel):
-    """
-
-        """
+    """ """
 
     def __init__(self):
         super().__init__()
@@ -396,9 +458,7 @@ class ProspectorAlphaGalaxyPopulationModel(GalaxyPopulationModel):
 
 
 class ProspectorBetaGalaxyPopulationModel(GalaxyPopulationModel):
-    """
-
-        """
+    """ """
 
     def __init__(self):
         super().__init__()

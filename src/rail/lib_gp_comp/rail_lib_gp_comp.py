@@ -4,8 +4,7 @@
 # Author: Luca Tortorelli
 
 # System imports
-from __future__ import (print_function, division, absolute_import,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 
 def check_implemented_components(input_component):
@@ -19,7 +18,7 @@ def check_implemented_components(input_component):
     -------
 
     """
-    implemented_modelling_components = ['Schechter']
+    implemented_modelling_components = ["Schechter"]
 
     if input_component in implemented_modelling_components:
         return True

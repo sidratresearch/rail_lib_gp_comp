@@ -4,19 +4,18 @@
 # Author: Luca Tortorelli
 
 # System imports
-from __future__ import (print_function, division, absolute_import,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 # External modules
 import numpy as np
 import scipy
 
+_LOGMAX = np.log(np.finfo(0.0).max)
 
-_LOGMAX = np.log(np.finfo(0.).max)
 
-
-def compute_lower_truncation_scaled_schechter_random_variable(redshift_grid, apparent_magnitude_limit,
-                                                              cosmology_object, m_star):
+def compute_lower_truncation_scaled_schechter_random_variable(
+    redshift_grid, apparent_magnitude_limit, cosmology_object, m_star
+):
     """
     This function computes first the limit absolute magnitude at every redshift given the limit apparent magnitude,
     then subtract m_star and rescales it.
@@ -84,7 +83,7 @@ def gamma_function_integration_for_redshift(lnxmin, alpha):
 
         """
 
-        return np.exp((a + 1) * lnx - np.exp(lnx)) if lnx < _LOGMAX else 0.
+        return np.exp((a + 1) * lnx - np.exp(lnx)) if lnx < _LOGMAX else 0.0
 
     gamma = np.empty_like(lnxmin)
     if np.isscalar(alpha):
@@ -97,7 +96,9 @@ def gamma_function_integration_for_redshift(lnxmin, alpha):
     return gamma
 
 
-def get_minimum_limiting_absolute_magnitude(galaxy_redshifts, apparent_magnitude_limit, cosmology_object, m_star):
+def get_minimum_limiting_absolute_magnitude(
+    galaxy_redshifts, apparent_magnitude_limit, cosmology_object, m_star
+):
     """
     This function computes the minimum limiting absolute magnitude for each galaxy redshift.
 
@@ -123,14 +124,14 @@ def get_minimum_limiting_absolute_magnitude(galaxy_redshifts, apparent_magnitude
     x_min -= m_star
     x_min *= -0.4
     if np.ndim(x_min) > 0:
-        np.power(10., x_min, out=x_min)
+        np.power(10.0, x_min, out=x_min)
     else:
-        x_min = 10. ** x_min
+        x_min = 10.0**x_min
 
     return x_min
 
 
-def sample_from_schechter_function(alpha, x_min, x_max, size=None, scale=1., resolution=1000):
+def sample_from_schechter_function(alpha, x_min, x_max, size=None, scale=1.0, resolution=1000):
     """
     This function draws samples from the Schechter function expressed in a functional form of the kind x^alpha * e^x
     via a change of variable to use the properties of the gamma function.
