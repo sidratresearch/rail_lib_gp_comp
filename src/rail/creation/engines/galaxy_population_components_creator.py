@@ -35,6 +35,7 @@ class DiffskyGalaxyPopulationCreator(Creator):
     """
 
     name = "DiffskyGalaxyPopulationCreator"
+    entrypoint_function = "sample"  # the user-facing science function for this class
     config_options = RailStage.config_options.copy()
 
     config_options.update(
