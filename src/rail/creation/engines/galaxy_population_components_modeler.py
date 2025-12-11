@@ -28,6 +28,7 @@ class DiffskyGalaxyPopulationModeler(Modeler):
 
     name = "DiffskyGalaxyPopulationModeler"
     entrypoint_function = "fit_model"  # the user-facing science function for this class
+    interactive_function = "diff_sky_galaxy_population_modeler"
     config_options = RailStage.config_options.copy()
 
     config_options.update(
