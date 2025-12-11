@@ -262,27 +262,26 @@ class DiffskyGalaxyPopulationCreator(Creator):
             log_stellar_masses,
         )
 
-    def sample(self, seed: int = None, input_data=None, **kwargs):
+    def sample(self, seed: int = None, input_data=None, **kwargs) -> Hdf5Handle:
         r"""
         Samples galaxy properties from diffsky/skysim model and stores them into an Hdf5Handle
 
         Parameters
         ----------
-        seed: int
+        seed : int
             The random seed to control sampling
-        input_data: Hdf5Handle
+        input_data : Hdf5Handle
             This is the input diffsky/skysim population properties catalog path.
 
         Returns
         -------
-        output: Hdf5Handle
+        Hdf5Handle
             Hdf5 Handle storing the sampled galaxy properties.
 
         Notes
         -----
         This method puts  `seed` into the stage configuration data, which makes them available to other methods.
         It then calls the `run` method. Finally, the `Hdf5Handle` associated to the `output` tag is returned.
-
         """
         if input_data is None:
             RAIL_LIB_GP_COMP_DIR = os.path.abspath(

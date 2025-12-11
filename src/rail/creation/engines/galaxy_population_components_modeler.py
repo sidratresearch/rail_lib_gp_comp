@@ -103,19 +103,19 @@ class DiffskyGalaxyPopulationModeler(Modeler):
 
         return mah_params, ms_params, q_params
 
-    def fit_model(self, input_data=None):
+    def fit_model(self, input_data=None, **kwargs) -> Hdf5Handle:
         """
         This function samples the population parameters from the diffsky/skysim galaxy population model and stores
         them into an Hdf5Handle.
 
         Parameters
         ----------
-        input_data: str
+        input_data : str
             This is the input diffsky/skysim catalog path.
 
         Returns
         -------
-        model: Hdf5Handle
+        Hdf5Handle
             Hdf5 table storing the population parameters.
         """
         if input_data is None:
