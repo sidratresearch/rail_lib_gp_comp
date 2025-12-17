@@ -26,7 +26,7 @@ dependencies = [
     "astropy",
     "pandas",
     "dsps",
-    "diffstar",
+    "diffstar<0.3.3", # in 0.3.3, structure was changed, removing the diffstar.sfh module
     "diffmah",
     "jaxlib",
     "h5py",
