@@ -5,7 +5,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = { file = "LICENSE" }
 authors = [
-    { name = "Luca Tortorelli, LSST DESC PZ WG", email = "Luca.Tortorelli@physik.lmu.de" }
+    { name = "Luca Tortorelli, LSST DESC PZ WG", email = "Luca.Tortorelli@physik.lmu.de" },
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -16,7 +16,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Natural Language :: English",
-    "Operating System :: POSIX"
+    "Operating System :: POSIX",
 ]
 dynamic = ["version"]
 dependencies = [
@@ -29,7 +29,7 @@ dependencies = [
     "diffstar",
     "diffmah",
     "jaxlib",
-    "h5py"
+    "h5py",
 ]
 
 [project.optional-dependencies]
@@ -43,7 +43,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]>=6.2"]
+requires      = ["setuptools>=61", "wheel", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
@@ -67,17 +67,17 @@ exclude_lines = [
     "raise NotImplementedError",
     "if 0:",
     "if __name__ == .__main__.:",
-    "if TYPE_CHECKING:"
+    "if TYPE_CHECKING:",
 ]
 
 [tool.black]
-line-length = 110
+line-length    = 110
 target-version = ["py310"]
 
 [tool.pydocstyle]
 convention = "numpy"
 add_select = [
-    "D212" # Multi-line docstring summary should start at the first line
+    "D212", # Multi-line docstring summary should start at the first line
 ]
 add-ignore = [
     "D105", # Missing docstring in magic method
@@ -101,7 +101,7 @@ disable = [
     "missing-class-docstring",
     "missing-function-docstring",
     "too-few-public-methods",
-    "duplicate-code"
+    "duplicate-code",
 ]
 max-line-length = 110
 max-locals = 50
@@ -109,25 +109,21 @@ max-branches = 25
 max-public-methods = 50
 
 [tool.isort]
-profile = "black"
+profile     = "black"
 line_length = 110
 
 [tool.pytest.ini_options]
-addopts = [
-    "--cov=rail.creation.engines",
-    "--cov-branch",
-    "--cov-report=html"
-]
+addopts       = ["--cov=rail.creation.engines", "--cov-branch", "--cov-report=html"]
 flake8-ignore = "E203"
 
 [tool.mypy]
-disallow_untyped_defs = true
+disallow_untyped_defs    = true
 disallow_incomplete_defs = true
-ignore_missing_imports = true
-namespace_packages = true
-plugins = "sqlalchemy.ext.mypy.plugin"
-show_error_codes = true
-strict_equality = true
-warn_redundant_casts = true
-warn_unreachable = true
-warn_unused_ignores = true
+ignore_missing_imports   = true
+namespace_packages       = true
+plugins                  = "sqlalchemy.ext.mypy.plugin"
+show_error_codes         = true
+strict_equality          = true
+warn_redundant_casts     = true
+warn_unreachable         = true
+warn_unused_ignores      = true
