@@ -20,13 +20,13 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-    "pz-rail-base>=2.0.0",
+    "pz-rail-base>=2.0.0-dev",
     "numpy",
     "scipy",
     "astropy",
     "pandas",
     "dsps",
-    "diffstar<0.3.3",      # in 0.3.3, structure was changed, removing the diffstar.sfh module
+    "diffstar<0.3.3",          # in 0.3.3, structure was changed, removing the diffstar.sfh module
     "diffmah",
     "jaxlib",
     "h5py",
